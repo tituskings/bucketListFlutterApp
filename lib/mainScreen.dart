@@ -23,7 +23,11 @@ class _MainscreenState extends State<Mainscreen> {
       Response response = await Dio().get(
           "https://flutterapitest-5b281-default-rtdb.firebaseio.com/bucketlist.json");
 
-      bucketListData = response.data;
+      if (response.data is List) {
+        bucketListData = response.data;
+      } else {
+        bucketListData = [];
+      }
       isLoading = false;
       isError = false;
       setState(() {});
@@ -54,29 +58,48 @@ class _MainscreenState extends State<Mainscreen> {
   }
 
   Widget listDataWidget() {
-    return ListView.builder(
-        itemCount: bucketListData.length,
-        itemBuilder: (BuildContext context, int index) {
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ListTile(
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) {
-                  return ViewItemScreen(
-                      title: bucketListData[index]['item'] ?? "",
-                      image: bucketListData[index]['image'] ?? "");
-                }));
-              },
-              leading: CircleAvatar(
-                radius: 25,
-                backgroundImage:
-                    NetworkImage(bucketListData[index]['image'] ?? ""),
-              ),
-              title: Text(bucketListData[index]['item'] ?? ""),
-              trailing: Text(bucketListData[index]['cost'].toString()),
-            ),
-          );
-        });
+    List<dynamic> filteredList = bucketListData
+        .where((element) => !(element?["completed"] ??
+            false)) // false are fall back value assigned to this code incase if element or completed doesnt exist
+        .toList();
+    return filteredList.isEmpty
+        ? Center(child: Text("No data on bucket list"))
+        : ListView.builder(
+            itemCount: bucketListData.length,
+            itemBuilder: (BuildContext context, int index) {
+              return Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: (bucketListData[index] is Map &&
+                        //(bucketListData[index]["completed"] == false))
+                        (!(bucketListData[index]?["completed"] ??
+                            false))) // the ==false was replaced with !
+                    ? ListTile(
+                        onTap: () {
+                          Navigator.push(context,
+                              MaterialPageRoute(builder: (context) {
+                            return ViewItemScreen(
+                                index: index,
+                                title: bucketListData[index]?['item'] ??
+                                    "", // the question mark between the square bracket reps an argument that if the index does exist the return null no need of checking for the item
+                                image: bucketListData[index]?['image'] ?? "");
+                          })).then((value) {
+                            if (value == "refresh") {
+                              getData();
+                            }
+                          });
+                        },
+                        leading: CircleAvatar(
+                          radius: 25,
+                          backgroundImage: NetworkImage(
+                              bucketListData[index]?['image'] ?? ""),
+                        ),
+                        title: Text(bucketListData[index]?['item'] ?? ""),
+                        trailing: Text(
+                            bucketListData[index]?['cost'].toString() ?? ""),
+                      )
+                    : SizedBox(),
+              );
+            });
   }
 
   @override
@@ -85,8 +108,14 @@ class _MainscreenState extends State<Mainscreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(context, MaterialPageRoute(builder: (context) {
-            return AddBucketListScreen();
-          }));
+            return AddBucketListScreen(
+              newIndex: bucketListData.length,
+            );
+          })).then((value) {
+            if (value == "refresh") {
+              getData();
+            }
+          });
         },
         shape: CircleBorder(),
         child: Icon(Icons.add),
