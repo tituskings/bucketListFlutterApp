@@ -1,4 +1,4 @@
-import 'package:bucket_list_app/mainScreen.dart';
+import 'package:bucket_list_app/screens/main_screen.dart';
 import 'package:flutter/material.dart';
 
 void main() {
